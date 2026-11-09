@@ -1,0 +1,6 @@
+{
+  "name": "PsicoGestión",
+  "description": "App para psicólogas diseñada para TDAH: organiza pacientes, fichas clínicas, registro de sesiones en 1 clic y control de pagos y deudas sin fricción.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

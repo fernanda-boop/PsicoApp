@@ -1,0 +1,202 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation helper for Patient entity
+    function isValidPatient(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
+             (!('phone' in data) || data.phone == null || (data.phone is string && data.phone.size() <= 50)) &&
+             (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 100)) &&
+             (data.sessionFee is number && data.sessionFee >= 0) &&
+             (!('diagnosis' in data) || data.diagnosis == null || (data.diagnosis is string && data.diagnosis.size() <= 5000)) &&
+             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() <= 10000)) &&
+             (!('emergencyContact' in data) || data.emergencyContact == null || (data.emergencyContact is string && data.emergencyContact.size() <= 200)) &&
+             (!('dayOfWeek' in data) || data.dayOfWeek == null || (data.dayOfWeek is string && data.dayOfWeek.size() <= 50)) &&
+             (!('sessionTime' in data) || data.sessionTime == null || (data.sessionTime is string && data.sessionTime.size() <= 50)) &&
+             data.active is bool &&
+             (data.totalSessions is int && data.totalSessions >= 0) &&
+             data.debtAmount is number &&
+             (!('templateId' in data) || data.templateId == null || (data.templateId is string && data.templateId.size() <= 128)) &&
+             (!('customFieldValues' in data) || data.customFieldValues == null || data.customFieldValues is map);
+    }
+
+    // Validation helper for Session entity
+    function isValidSession(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.patientId is string && data.patientId.size() > 0 && data.patientId.size() <= 128 &&
+             data.patientName is string && data.patientName.size() > 0 && data.patientName.size() <= 150 &&
+             data.date is string && data.date.size() <= 50 &&
+             (data.fee is number && data.fee >= 0) &&
+             data.isPaid is bool &&
+             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() <= 10000)) &&
+             (!('audioPath' in data) || data.audioPath == null || (data.audioPath is string && data.audioPath.size() <= 500)) &&
+             (!('audioDurationSec' in data) || data.audioDurationSec == null || (data.audioDurationSec is int && data.audioDurationSec >= 0));
+    }
+
+    // Validation helper for Payment entity
+    function isValidPayment(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.patientId is string && data.patientId.size() > 0 && data.patientId.size() <= 128 &&
+             data.patientName is string && data.patientName.size() > 0 && data.patientName.size() <= 150 &&
+             (data.amount is number && data.amount >= 0) &&
+             data.date is string && data.date.size() <= 50 &&
+             data.paymentMethod is string && data.paymentMethod.size() <= 100 &&
+             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() <= 1000));
+    }
+
+    // Validation helper for ClinicalTemplate
+    function isValidTemplate(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
+             (!('description' in data) || data.description == null || (data.description is string && data.description.size() <= 500)) &&
+             data.isDefault is bool &&
+             data.fields is list && data.fields.size() <= 50;
+    }
+
+    // Validation helper for ReminderConfig
+    function isValidReminderConfig(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.sessionReminderChannel is string && data.sessionReminderChannel.size() <= 50 &&
+             (data.sessionReminderHoursBefore is int && data.sessionReminderHoursBefore >= 0) &&
+             data.sessionMessageTemplate is string && data.sessionMessageTemplate.size() <= 1000 &&
+             data.debtReminderChannel is string && data.debtReminderChannel.size() <= 50 &&
+             data.debtReminderFrequency is string && data.debtReminderFrequency.size() <= 50 &&
+             data.debtMessageTemplate is string && data.debtMessageTemplate.size() <= 1000 &&
+             data.notifyMePendingDebts is bool;
+    }
+
+    // Collection rules for Patients
+    match /users/{userId}/patients/{patientId} {
+      allow get, list, delete: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(patientId) &&
+                       incoming().userId == userId &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidPatient(incoming());
+
+      allow update: if isOwner(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidPatient(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'name', 'phone', 'email', 'sessionFee', 'diagnosis', 'notes',
+                         'emergencyContact', 'dayOfWeek', 'sessionTime', 'active',
+                         'totalSessions', 'debtAmount', 'templateId', 'customFieldValues',
+                         'updatedAt'
+                       ]);
+    }
+
+    // Collection rules for Sessions
+    match /users/{userId}/sessions/{sessionId} {
+      allow get, list, delete: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(sessionId) &&
+                       incoming().userId == userId &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidSession(incoming());
+
+      allow update: if isOwner(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidSession(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'patientId', 'patientName', 'date', 'fee', 'isPaid',
+                         'notes', 'audioPath', 'audioDurationSec', 'updatedAt'
+                       ]);
+    }
+
+    // Collection rules for Payments
+    match /users/{userId}/payments/{paymentId} {
+      allow get, list, delete: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(paymentId) &&
+                       incoming().userId == userId &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidPayment(incoming());
+
+      allow update: if isOwner(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidPayment(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'patientId', 'patientName', 'amount', 'date',
+                         'paymentMethod', 'notes', 'updatedAt'
+                       ]);
+    }
+
+    // Collection rules for Clinical Templates
+    match /users/{userId}/templates/{templateId} {
+      allow get, list, delete: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(templateId) &&
+                       incoming().userId == userId &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidTemplate(incoming());
+
+      allow update: if isOwner(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTemplate(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'name', 'description', 'isDefault', 'fields', 'updatedAt'
+                       ]);
+    }
+
+    // Collection rules for Reminder Configs
+    match /users/{userId}/reminder_configs/{configId} {
+      allow get, list, delete: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(configId) &&
+                       incoming().userId == userId &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidReminderConfig(incoming());
+
+      allow update: if isOwner(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidReminderConfig(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'sessionReminderChannel', 'sessionReminderHoursBefore', 'sessionMessageTemplate',
+                         'debtReminderChannel', 'debtReminderFrequency', 'debtMessageTemplate',
+                         'notifyMePendingDebts', 'updatedAt'
+                       ]);
+    }
+  }
+}

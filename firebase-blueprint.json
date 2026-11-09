@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient clinical file and administrative details",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Therapist user ID" },
+        "name": { "type": "string", "description": "Full name of the patient" },
+        "phone": { "type": "string", "description": "Contact phone number" },
+        "email": { "type": "string", "description": "Email address" },
+        "sessionFee": { "type": "number", "description": "Agreed fee per session" },
+        "diagnosis": { "type": "string", "description": "Diagnosis or reason for consultation" },
+        "notes": { "type": "string", "description": "Clinical background and general notes" },
+        "emergencyContact": { "type": "string", "description": "Emergency contact name and phone" },
+        "dayOfWeek": { "type": "string", "description": "Regular session day of the week" },
+        "sessionTime": { "type": "string", "description": "Regular session time (e.g. 16:00)" },
+        "active": { "type": "boolean", "description": "Whether the patient is currently in active treatment" },
+        "totalSessions": { "type": "integer", "description": "Total completed sessions count" },
+        "debtAmount": { "type": "number", "description": "Current pending debt amount" },
+        "templateId": { "type": "string", "description": "Optional ID of clinical sheet template applied" },
+        "customFieldValues": { "type": "object", "description": "Map of custom field IDs to their string or JSON values" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "name", "sessionFee", "active", "totalSessions", "debtAmount", "createdAt"]
+    },
+    "Session": {
+      "title": "Session",
+      "description": "Therapy session record with optional audio and clinical notes",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Therapist user ID" },
+        "patientId": { "type": "string", "description": "Referenced patient ID" },
+        "patientName": { "type": "string", "description": "Patient name for fast scannability" },
+        "date": { "type": "string", "description": "Session date (YYYY-MM-DD)" },
+        "fee": { "type": "number", "description": "Session cost" },
+        "isPaid": { "type": "boolean", "description": "Whether this session has been marked as paid" },
+        "notes": { "type": "string", "description": "Evolution clinical notes for this session" },
+        "audioPath": { "type": "string", "description": "Local relative audio file path for confidential session voice recording" },
+        "audioDurationSec": { "type": "integer", "description": "Audio duration in seconds" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "patientId", "patientName", "date", "fee", "isPaid", "createdAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Financial payment transaction registered for a patient",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Therapist user ID" },
+        "patientId": { "type": "string", "description": "Referenced patient ID" },
+        "patientName": { "type": "string", "description": "Patient name" },
+        "amount": { "type": "number", "description": "Payment amount received" },
+        "date": { "type": "string", "description": "Payment date (YYYY-MM-DD)" },
+        "paymentMethod": { "type": "string", "description": "Payment method (Transferencia, Efectivo, etc.)" },
+        "notes": { "type": "string", "description": "Optional notes or receipt reference" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "patientId", "patientName", "amount", "date", "paymentMethod", "createdAt"]
+    },
+    "ClinicalTemplate": {
+      "title": "ClinicalTemplate",
+      "description": "Customizable clinical sheet template with dynamic fields",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Therapist user ID" },
+        "name": { "type": "string", "description": "Template title (e.g. TCC Adultos, Infanto-Juvenil)" },
+        "description": { "type": "string", "description": "Template description" },
+        "isDefault": { "type": "boolean", "description": "Whether this is the default template for new patients" },
+        "fields": { "type": "array", "description": "List of dynamic custom field specifications" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "name", "isDefault", "fields", "createdAt"]
+    },
+    "ReminderConfig": {
+      "title": "ReminderConfig",
+      "description": "Configuration for automatic session and debt reminders",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Therapist user ID" },
+        "sessionReminderChannel": { "type": "string", "description": "Channel (whatsapp, sms, email)" },
+        "sessionReminderHoursBefore": { "type": "integer", "description": "Hours before session to notify (e.g. 24, 2)" },
+        "sessionMessageTemplate": { "type": "string", "description": "Text template for session notification" },
+        "debtReminderChannel": { "type": "string", "description": "Channel for debt notifications" },
+        "debtReminderFrequency": { "type": "string", "description": "Frequency (weekly, biweekly, monthly)" },
+        "debtMessageTemplate": { "type": "string", "description": "Text template for debt reminder" },
+        "notifyMePendingDebts": { "type": "boolean", "description": "Whether therapist wants pending debt alerts in dashboard" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "userId", "sessionReminderChannel", "sessionReminderHoursBefore", "sessionMessageTemplate",
+        "debtReminderChannel", "debtReminderFrequency", "debtMessageTemplate", "notifyMePendingDebts", "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/patients/{patientId}": {
+      "schema": { "$ref": "#/entities/Patient" },
+      "description": "Patients collection scoped to the authenticated therapist"
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/Session" },
+      "description": "Sessions collection scoped to the authenticated therapist"
+    },
+    "/users/{userId}/payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/Payment" },
+      "description": "Payments collection scoped to the authenticated therapist"
+    },
+    "/users/{userId}/templates/{templateId}": {
+      "schema": { "$ref": "#/entities/ClinicalTemplate" },
+      "description": "Custom clinical sheet templates scoped to the authenticated therapist"
+    },
+    "/users/{userId}/reminder_configs/{configId}": {
+      "schema": { "$ref": "#/entities/ReminderConfig" },
+      "description": "Notification and reminder configurations scoped to the authenticated therapist"
+    }
+  }
+}
