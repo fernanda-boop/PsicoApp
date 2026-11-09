@@ -139,20 +139,29 @@ class DashboardViewModel(
    * Adds a completed session for today, increments patient total sessions and updates debt.
    */
   fun quickRecordSession(patient: Patient, onCompleted: (Boolean) -> Unit = {}) {
+    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    quickRecordSessionForDate(patient, todayStr, "Sesión realizada (1-clic)", onCompleted)
+  }
+
+  fun quickRecordSessionForDate(
+    patient: Patient,
+    dateStr: String,
+    notes: String = "Sesión realizada (1-toque)",
+    onCompleted: (Boolean) -> Unit = {}
+  ) {
     viewModelScope.launch {
-      val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
       val session = Session(
         userId = currentUserId,
         patientId = patient.id,
         patientName = patient.name,
-        date = todayStr,
+        date = dateStr,
         fee = patient.sessionFee,
         isPaid = false,
-        notes = "Sesión realizada (1-clic)"
+        notes = notes
       )
       val result = repository.addSession(currentUserId, session, autoUpdateDebt = true)
       if (result.isSuccess) {
-        _actionFeedback.value = "¡Sesión registrada para ${patient.name} (+1)!"
+        _actionFeedback.value = "¡Sesión ($dateStr) registrada para ${patient.name} (+1)!"
         onCompleted(true)
       } else {
         _actionFeedback.value = "Error al registrar la sesión"
